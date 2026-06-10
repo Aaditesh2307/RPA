@@ -5,7 +5,9 @@ description = "Agentic RPA Python Agent with PyO3 Rust bindings"
 requires-python = ">=3.10"
 dependencies = [
     "langgraph>=0.1.0",
-    "google-genai>=0.1.0",
+    "groq>=0.9.0",
+    "pillow>=10.0.0",
+    "python-dotenv>=1.0.0",
     "maturin>=1.5.0",
 ]
 

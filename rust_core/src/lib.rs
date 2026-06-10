@@ -57,11 +57,46 @@ fn capture_screen() -> PyResult<(usize, usize, Vec<u8>)> {
     Err(pyo3::exceptions::PyRuntimeError::new_err("Timeout waiting for frame from screen capturer"))
 }
 
+/// Simulate typing a string of text
+#[pyfunction]
+fn type_text(text: String) -> PyResult<()> {
+    use enigo::{Enigo, Keyboard, Settings};
+    let mut enigo = Enigo::new(&Settings::default())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to init Enigo: {:?}", e)))?;
+    enigo.text(&text)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to type text: {:?}", e)))?;
+    Ok(())
+}
+
+/// Simulate pressing a special key (e.g., Return, Escape, Tab, Backspace, Space)
+#[pyfunction]
+fn press_key(key_name: String) -> PyResult<()> {
+    use enigo::{Direction::Click, Enigo, Key, Keyboard, Settings};
+    let mut enigo = Enigo::new(&Settings::default())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to init Enigo: {:?}", e)))?;
+
+    let key = match key_name.to_lowercase().as_str() {
+        "return" | "enter" => Key::Return,
+        "escape" | "esc" => Key::Escape,
+        "tab" => Key::Tab,
+        "backspace" => Key::Backspace,
+        "space" => Key::Space,
+        _ => return Err(pyo3::exceptions::PyValueError::new_err(format!("Unsupported key name: {}", key_name))),
+    };
+
+    enigo.key(key, Click)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to press key: {:?}", e)))?;
+    Ok(())
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn rust_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(move_mouse_to, m)?)?;
     m.add_function(wrap_pyfunction!(click_mouse, m)?)?;
     m.add_function(wrap_pyfunction!(capture_screen, m)?)?;
+    m.add_function(wrap_pyfunction!(type_text, m)?)?;
+    m.add_function(wrap_pyfunction!(press_key, m)?)?;
     Ok(())
 }
+
