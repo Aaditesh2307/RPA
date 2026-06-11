@@ -30,13 +30,13 @@ except ImportError:
     START = "__start__"
     END = "__end__"
 
-# Try importing Groq
+# Try importing OpenAI
 try:
-    from groq import Groq
-    HAS_GROQ = True
+    from openai import OpenAI
+    HAS_OPENAI = True
 except ImportError:
-    HAS_GROQ = False
-    print("Warning: 'groq' module not found. Using dry-run mode for decisions.")
+    HAS_OPENAI = False
+    print("Warning: 'openai' module not found. Using dry-run mode for decisions.")
 
 # Try to import our compiled Rust core (available after running maturin develop/build)
 try:
@@ -102,7 +102,7 @@ def capture_screen_node(state: RPAState) -> dict:
         print(f"[Rust Core Error] Screen capture failed: {e}")
         return {"screenshot_data": (1920, 1080, b'')}
 
-# Node 2: Analyze screenshot and determine action using Groq (Llama 3.2 Vision)
+# Node 2: Analyze screenshot and determine action using Hugging Face (Gemma 4)
 def analyze_screen_node(state: RPAState) -> dict:
     print("\n--- Node: Analyze Screen & Decide ---")
     objective = state.get("objective", "")
@@ -114,11 +114,13 @@ def analyze_screen_node(state: RPAState) -> dict:
         return {"next_action": '{"action": "wait", "reason": "No screenshot"}'}
         
     width, height, raw_pixels = screenshot
+    if isinstance(raw_pixels, list):
+        raw_pixels = bytes(raw_pixels)
     base64_image = convert_bgra_to_base64_jpeg(width, height, raw_pixels)
     
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not HAS_GROQ or not api_key:
-        print("[Simulation Mode] Groq API client or GROQ_API_KEY missing. Simulating steps...")
+    api_key = os.environ.get("HF_TOKEN")
+    if not HAS_OPENAI or not api_key:
+        print("[Simulation Mode] OpenAI API client or HF_TOKEN missing. Simulating steps...")
         # Simulate a sequence of steps for testing
         history = state.get("history", [])
         step = len(history)
@@ -135,24 +137,29 @@ def analyze_screen_node(state: RPAState) -> dict:
         action_json = json.dumps(action)
         return {"next_action": action_json}
         
-    # Real Groq API client call
-    print(f"Connecting to Groq API (Model: llama-3.2-11b-vision-preview)...")
-    client = Groq(api_key=api_key)
+    # Real API client call
+    print(f"Connecting to Hugging Face API (Model: google/gemma-4-31B-it:novita)...")
+    client = OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=api_key,
+    )
     
     prompt = f"""You are a cross-platform OS-level Agentic RPA system.
 Your current objective is: "{objective}"
 
 Based on the attached screen capture, determine the next logical GUI action to achieve this objective.
 The screen resolution is {width}x{height}. 
-
+for the next step identification try to identify each and every icon presnt on the screen and tehn come up with teh next step.
+For example : If the objective is to open a file and the image shows a windows icon click on it and look for the application image.
 You MUST respond ONLY with a raw JSON block in this exact format (no markdown code blocks, no ```json wrapper):
 {{
-  "action": "click" | "type" | "press" | "wait" | "done",
+  "action": "click" | "type" | "press" | "wait" | "command" | "done",
   "reason": "Brief explanation of what this action does and why you chose it",
   "x": <integer x coordinate, required if action is click>,
   "y": <integer y coordinate, required if action is click>,
   "text": "<text string to type, required if action is type>",
-  "key": "enter" | "escape" | "tab" | "backspace" | "space" <required if action is press>
+  "key": "enter" | "escape" | "tab" | "backspace" | "space" <required if action is press>,
+  "command": "<terminal/os command to run, required if action is command>"
 }}
 
 Notes:
@@ -160,7 +167,7 @@ Notes:
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview",
+            model="google/gemma-4-31B-it:novita",
             messages=[
                 {
                     "role": "user",
@@ -192,8 +199,8 @@ Notes:
                 
         return {"next_action": cleaned_text}
     except Exception as e:
-        print(f"[Groq API Error] Request failed: {e}")
-        return {"next_action": '{"action": "wait", "reason": "Groq request failed"}'}
+        print(f"[API Error] Request failed: {e}")
+        return {"next_action": '{"action": "wait", "reason": "API request failed"}'}
 
 # Node 3: Execute the action via Rust core input simulation
 def execute_action_node(state: RPAState) -> dict:
@@ -225,6 +232,15 @@ def execute_action_node(state: RPAState) -> dict:
             key = action_data.get("key", "")
             print(f"Executing: Pressing key: '{key}'")
             rust_core.press_key(key)
+        elif action_type == "command":
+            cmd = action_data.get("command", "")
+            print(f"Executing OS Command: '{cmd}'")
+            import subprocess
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                print(f"Command Output:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}")
+            except Exception as e:
+                print(f"Command execution failed: {e}")
         elif action_type == "wait":
             print("Executing: Waiting 2 seconds...")
             time.sleep(2)
@@ -307,7 +323,7 @@ else:
 
 def run_agent(objective: str):
     print("=" * 60)
-    print(f"Starting Groq RPA Workflow with Objective: '{objective}'")
+    print(f"Starting Hugging Face RPA Workflow with Objective: '{objective}'")
     print("=" * 60)
     
     initial_state = {
@@ -325,4 +341,4 @@ def run_agent(objective: str):
     print("=" * 60)
 
 if __name__ == "__main__":
-    run_agent("Open the search engine, search for 'Groq API keys', and press enter.")
+    run_agent("Open the search engine, search for 'Hugging Face API keys', and press enter.")
