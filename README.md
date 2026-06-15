@@ -28,6 +28,30 @@ graph TD
     style Rust Core fill:#d35400,stroke:#e67e22,stroke-width:2px,color:#fff
     style Operating System fill:#7f8c8d,stroke:#95a5a6,stroke-width:2px,color:#fff
 ```
+---
+
+## Memory Architecture (LangGraph & Supermemory)
+
+The agent utilizes a dual-memory system to ensure high performance and reduce redundant operations over time.
+
+### 1. Short-Term Memory (LangGraph `RPAState`)
+During a single execution run, the agent uses LangGraph to maintain a persistent state dictionary (`RPAState`). This state holds the immediate context needed to solve the current objective, such as:
+- The latest screen capture.
+- Background terminal outputs (`STDOUT`/`STDERR`).
+- Current directory contents and active processes.
+- The history of actions taken *so far* during this specific task.
+
+Once the objective is successfully completed, this short-term working memory is cleared.
+
+### 2. Long-Term Memory (Supermemory API)
+To prevent the agent from re-learning how to solve the same problem from scratch, it integrates with the [Supermemory API](https://supermemory.ai/).
+- **Preservation:** When the LangGraph state machine reaches a successful `done` state, it bundles the objective and the exact sequence of successful actions (e.g., terminal commands or python scripts) and saves them to Supermemory's vector database under a specific `containerTag`.
+- **Retrieval:** When a new objective is started, the agent first queries Supermemory using hybrid search. If it finds a past successful run for a similar task, it pulls that history back into its short-term `RPAState` as `memory_context`.
+- **Execution:** The agent is strictly instructed to leverage this past knowledge. Instead of running trial-and-error searches, it will immediately execute the exact command that worked previously.
+
+#### Example Scenario
+1. **First Run ("Find John Deere files"):** The agent tries a recursive search on the `C:\` drive, which times out. It then tries searching `C:\Users`, which succeeds and finds the files. It saves this successful sequence to Supermemory.
+2. **Second Run ("Locate John Deere documents"):** The agent queries Supermemory and sees its past success. Instead of searching the `C:\` drive again, it immediately jumps to the optimal `C:\Users` search command, completing the task in seconds instead of minutes.
 
 ---
 
