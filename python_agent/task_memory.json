@@ -1,0 +1,9 @@
+{
+  "Open the search engine, search for 'Hugging Face API keys', and press enter.": [
+    "{\"action\": \"command\", \"reason\": \"The search engine is not open. I need to launch a web browser to perform the search.\", \"command\": \"start chrome \\\"https://www.google.com\\\"\"}",
+    "{\"action\": \"wait\", \"reason\": \"I have just issued the command to open Chrome. I need to wait for the browser window to load and become visible on the screen before I can interact with the search bar.\"}",
+    "{\"action\": \"type\", \"reason\": \"The browser is now open and the Google search page is visible. I need to type the search query into the search bar.\", \"text\": \"Hugging Face API keys\"}",
+    "{\"action\": \"press\", \"reason\": \"I have already typed the search query 'Hugging Face API keys' into the search bar. The final step of the objective is to press enter to execute the search.\", \"key\": \"enter\"}",
+    "{\"action\": \"done\", \"reason\": \"The search results for 'Hugging Face API keys' are now visible on the screen, indicating that the search has been successfully executed.\"}"
+  ]
+}

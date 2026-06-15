@@ -31,6 +31,14 @@ graph TD
 
 ---
 
+## Key Capabilities
+
+- **Context & State:** The agent dynamically tracks persistent OS state, including current directory contents and the most active background processes (`psutil`), maintaining full context across multi-turn instructions.
+- **Dynamic Tool Use:** The orchestration engine intelligently routes actions between basic OS interactions (mouse/keyboard), native terminal commands, and dynamic `python_tool` execution for complex data and file processing.
+- **Low-Latency Loop:** Minimized debouncing logic and optimized action loops keep instruction execution latencies well under 1.5 seconds for local command generation.
+
+---
+
 ## Directory Structure
 
 ```text

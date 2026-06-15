@@ -15,10 +15,21 @@ fn move_mouse_to(x: i32, y: i32) -> PyResult<()> {
 #[pyfunction]
 fn click_mouse() -> PyResult<()> {
     use enigo::{Button, Direction, Enigo, Mouse, Settings};
+    use std::thread;
+    use std::time::Duration;
+
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to init Enigo: {:?}", e)))?;
-    enigo.button(Button::Left, Direction::Click)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to click: {:?}", e)))?;
+    
+    enigo.button(Button::Left, Direction::Press)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to press: {:?}", e)))?;
+        
+    // Hold the mouse click for 50ms to ensure the OS and UI frameworks register the click
+    thread::sleep(Duration::from_millis(50));
+    
+    enigo.button(Button::Left, Direction::Release)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to release: {:?}", e)))?;
+        
     Ok(())
 }
 
@@ -38,15 +49,15 @@ fn capture_screen() -> PyResult<(usize, usize, Vec<u8>)> {
     let mut capturer = Capturer::new(display)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to create capturer: {:?}", e)))?;
 
-    // Attempt to capture a frame (with a retry limit if it blocks)
-    for _ in 0..15 {
+    // Attempt to capture a frame (poll more frequently for better performance)
+    for _ in 0..50 {
         match capturer.frame() {
             Ok(frame) => {
                 // The frame is BGRA. Convert to a standard Vec<u8> to send to Python.
                 return Ok((width, height, frame.to_vec()));
             }
             Err(ref e) if e.kind() == WouldBlock => {
-                thread::sleep(Duration::from_millis(30));
+                thread::sleep(Duration::from_millis(10));
                 continue;
             }
             Err(e) => {
